@@ -4,6 +4,7 @@ import { useAuth } from "../context/useAuth";
 const navLinks = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/companies", label: "Companies" },
+  { to: "/job-applications", label: "Job Applications" },
 ];
 
 export function AppHeader() {

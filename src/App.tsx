@@ -3,6 +3,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CompaniesPage } from "./pages/CompaniesPage";
+import { JobApplicationsPage } from "./pages/JobApplicationsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/companies" element={<CompaniesPage />} />
+        <Route path="/job-applications" element={<JobApplicationsPage />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
