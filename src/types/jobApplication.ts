@@ -1,7 +1,12 @@
 export const WORK_TYPES = ["ONSITE", "REMOTE", "HYBRID"] as const;
 export type WorkType = (typeof WORK_TYPES)[number];
 
-export const JOB_APPLICATION_STATUSES = ["APPLIED", "INTERVIEW", "OFFER", "REJECTED"] as const;
+export const JOB_APPLICATION_STATUSES = [
+  "APPLIED",
+  "INTERVIEW",
+  "OFFER",
+  "REJECTED",
+] as const;
 export type JobApplicationStatus = (typeof JOB_APPLICATION_STATUSES)[number];
 
 export interface JobApplication {

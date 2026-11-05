@@ -13,7 +13,9 @@ export function AppHeader() {
   return (
     <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
       <div className="flex items-center gap-6">
-        <h1 className="text-lg font-semibold text-slate-900">Job Hunt Tracker</h1>
+        <h1 className="text-lg font-semibold text-slate-900">
+          Job Hunt Tracker
+        </h1>
         <nav className="flex gap-4">
           {navLinks.map((link) => (
             <NavLink

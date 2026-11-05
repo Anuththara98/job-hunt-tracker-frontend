@@ -1,6 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { apiFetch, setToken, getToken } from "../api/client";
-import type { AuthResponse, AuthUser, LoginPayload, RegisterPayload } from "../types/auth";
+import type {
+  AuthResponse,
+  AuthUser,
+  LoginPayload,
+  RegisterPayload,
+} from "../types/auth";
 import { AuthContext } from "./auth-context";
 
 const USER_KEY = "jobHuntTracker.user";
@@ -51,7 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: user !== null, isLoading, login, register, logout }}
+      value={{
+        user,
+        isAuthenticated: user !== null,
+        isLoading,
+        login,
+        register,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

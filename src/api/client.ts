@@ -5,7 +5,11 @@ export class ApiError extends Error {
   status: number;
   validationErrors?: Record<string, string>;
 
-  constructor(message: string, status: number, validationErrors?: Record<string, string>) {
+  constructor(
+    message: string,
+    status: number,
+    validationErrors?: Record<string, string>,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -37,9 +41,14 @@ interface BackendErrorResponse {
   validationErrors?: Record<string, string>;
 }
 
-export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  options: ApiFetchOptions = {},
+): Promise<T> {
   const { method = "GET", body, auth = true } = options;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
 
   if (auth) {
     const token = getToken();
@@ -58,7 +67,8 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     return undefined as T;
   }
 
-  const data = (await response.json().catch(() => null)) as BackendErrorResponse | T | null;
+  const data = (await response.json().catch(() => null)) as
+    BackendErrorResponse | T | null;
 
   if (!response.ok) {
     if (response.status === 401) {

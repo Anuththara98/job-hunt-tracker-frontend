@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { AppHeader } from "../components/AppHeader";
 import { ApiError } from "../api/client";
-import { listCompanies } from "../api/companies";
-import { listJobApplications } from "../api/jobApplications";
-import type { Company } from "../types/company";
+import { useCompanies } from "../queries/companies";
+import { useJobApplications } from "../queries/jobApplications";
 import {
   JOB_APPLICATION_STATUSES,
-  type JobApplication,
   type JobApplicationStatus,
 } from "../types/jobApplication";
 
@@ -25,35 +23,22 @@ function daysUntil(dateStr: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(`${dateStr}T00:00:00`);
-  return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.round(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
 }
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: jobApplications,
+    isLoading: isLoadingJobApplications,
+    isError: isJobApplicationsError,
+    error: jobApplicationsError,
+  } = useJobApplications();
+  const { data: companies, isLoading: isLoadingCompanies } = useCompanies();
 
-  useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const [jobApplicationsData, companiesData] = await Promise.all([
-          listJobApplications(),
-          listCompanies(),
-        ]);
-        setJobApplications(jobApplicationsData);
-        setCompanies(companiesData);
-      } catch (err) {
-        setLoadError(err instanceof ApiError ? err.message : "Failed to load dashboard data.");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadData();
-  }, []);
+  const isLoading = isLoadingJobApplications || isLoadingCompanies;
 
   const statusCounts = useMemo(() => {
     const counts: Record<JobApplicationStatus, number> = {
@@ -62,17 +47,19 @@ export function DashboardPage() {
       OFFER: 0,
       REJECTED: 0,
     };
-    for (const jobApplication of jobApplications) {
+    for (const jobApplication of jobApplications ?? []) {
       counts[jobApplication.status] += 1;
     }
     return counts;
   }, [jobApplications]);
 
   const closingSoon = useMemo(() => {
-    return jobApplications
+    return (jobApplications ?? [])
       .filter((j) => j.closingDate !== null && j.status !== "REJECTED")
       .map((j) => ({ jobApplication: j, daysLeft: daysUntil(j.closingDate!) }))
-      .filter(({ daysLeft }) => daysLeft >= 0 && daysLeft <= CLOSING_SOON_WINDOW_DAYS)
+      .filter(
+        ({ daysLeft }) => daysLeft >= 0 && daysLeft <= CLOSING_SOON_WINDOW_DAYS,
+      )
       .sort((a, b) => a.daysLeft - b.daysLeft);
   }, [jobApplications]);
 
@@ -84,23 +71,36 @@ export function DashboardPage() {
         <p className="mb-6 text-slate-600">Welcome back, {user?.firstName}.</p>
 
         {isLoading && <p className="text-slate-500">Loading dashboard...</p>}
-        {loadError && <p className="text-sm text-red-600">{loadError}</p>}
+        {isJobApplicationsError && (
+          <p className="text-sm text-red-600">
+            {jobApplicationsError instanceof ApiError
+              ? jobApplicationsError.message
+              : "Failed to load dashboard data."}
+          </p>
+        )}
 
-        {!isLoading && !loadError && (
+        {!isLoading && !isJobApplicationsError && (
           <>
             <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <p className="text-xs font-medium text-slate-500">Companies</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{companies.length}</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">
+                  {companies?.length ?? 0}
+                </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="text-xs font-medium text-slate-500">Applications</p>
+                <p className="text-xs font-medium text-slate-500">
+                  Applications
+                </p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">
-                  {jobApplications.length}
+                  {jobApplications?.length ?? 0}
                 </p>
               </div>
               {JOB_APPLICATION_STATUSES.map((status) => (
-                <div key={status} className="rounded-xl border border-slate-200 bg-white p-4">
+                <div
+                  key={status}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
                   <p className="text-xs font-medium text-slate-500">{status}</p>
                   <p
                     className={`mt-1 inline-block rounded-full px-2 py-0.5 text-2xl font-semibold ${STATUS_TILE_STYLES[status]}`}
@@ -116,16 +116,21 @@ export function DashboardPage() {
                 Closing within {CLOSING_SOON_WINDOW_DAYS} days
               </h3>
 
-              {jobApplications.length === 0 ? (
+              {(jobApplications?.length ?? 0) === 0 ? (
                 <p className="text-sm text-slate-500">
                   No job applications yet.{" "}
-                  <Link to="/job-applications" className="font-medium text-slate-900 underline">
+                  <Link
+                    to="/job-applications"
+                    className="font-medium text-slate-900 underline"
+                  >
                     Add one
                   </Link>
                   .
                 </p>
               ) : closingSoon.length === 0 ? (
-                <p className="text-sm text-slate-500">Nothing closing soon. You're all caught up.</p>
+                <p className="text-sm text-slate-500">
+                  Nothing closing soon. You're all caught up.
+                </p>
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {closingSoon.map(({ jobApplication, daysLeft }) => (
@@ -134,7 +139,8 @@ export function DashboardPage() {
                       className="flex items-center justify-between py-2 text-sm"
                     >
                       <span className="text-slate-800">
-                        {jobApplication.jobTitle} at {jobApplication.companyName}
+                        {jobApplication.jobTitle} at{" "}
+                        {jobApplication.companyName}
                       </span>
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${

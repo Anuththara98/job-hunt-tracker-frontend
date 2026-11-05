@@ -9,8 +9,14 @@ export function createCompany(payload: CompanyPayload): Promise<Company> {
   return apiFetch<Company>("/api/companies", { method: "POST", body: payload });
 }
 
-export function updateCompany(id: number, payload: CompanyPayload): Promise<Company> {
-  return apiFetch<Company>(`/api/companies/${id}`, { method: "PUT", body: payload });
+export function updateCompany(
+  id: number,
+  payload: CompanyPayload,
+): Promise<Company> {
+  return apiFetch<Company>(`/api/companies/${id}`, {
+    method: "PUT",
+    body: payload,
+  });
 }
 
 export function deleteCompany(id: number): Promise<void> {
