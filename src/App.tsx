@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { CompaniesPage } from "./pages/CompaniesPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/companies" element={<CompaniesPage />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
