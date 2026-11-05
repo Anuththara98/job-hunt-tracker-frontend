@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppHeader } from "../components/AppHeader";
 import { JobApplicationFormModal } from "../components/JobApplicationFormModal";
+import { CoverLetterModal } from "../components/CoverLetterModal";
 import { ApiError } from "../api/client";
 import { listCompanies } from "../api/companies";
 import {
@@ -32,6 +33,7 @@ export function JobApplicationsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [editingJobApplication, setEditingJobApplication] = useState<JobApplication | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [coverLetterTarget, setCoverLetterTarget] = useState<JobApplication | null>(null);
 
   useEffect(() => {
     loadData();
@@ -184,6 +186,12 @@ export function JobApplicationsPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-3">
                         <button
+                          onClick={() => setCoverLetterTarget(jobApplication)}
+                          className="text-sm font-medium text-slate-700 hover:text-slate-900"
+                        >
+                          Cover letter
+                        </button>
+                        <button
                           onClick={() => openEditModal(jobApplication)}
                           className="text-sm font-medium text-slate-700 hover:text-slate-900"
                         >
@@ -211,6 +219,15 @@ export function JobApplicationsPage() {
           companies={companies}
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleFormSubmit}
+        />
+      )}
+
+      {coverLetterTarget && (
+        <CoverLetterModal
+          jobApplicationId={coverLetterTarget.id}
+          jobTitle={coverLetterTarget.jobTitle}
+          companyName={coverLetterTarget.companyName}
+          onClose={() => setCoverLetterTarget(null)}
         />
       )}
     </div>
