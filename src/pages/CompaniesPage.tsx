@@ -3,13 +3,17 @@ import { AppHeader } from "../components/AppHeader";
 import { CompanyFormModal } from "../components/CompanyFormModal";
 import { ApiError } from "../api/client";
 import { createCompany, deleteCompany, listCompanies, updateCompany } from "../api/companies";
+import { useToast } from "../context/useToast";
+import { useConfirm } from "../context/useConfirm";
 import type { Company, CompanyPayload } from "../types/company";
 
 export function CompaniesPage() {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
+
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -32,13 +36,11 @@ export function CompaniesPage() {
 
   function openAddModal() {
     setEditingCompany(null);
-    setActionError(null);
     setIsModalOpen(true);
   }
 
   function openEditModal(company: Company) {
     setEditingCompany(company);
-    setActionError(null);
     setIsModalOpen(true);
   }
 
@@ -46,26 +48,27 @@ export function CompaniesPage() {
     if (editingCompany) {
       const updated = await updateCompany(editingCompany.id, payload);
       setCompanies((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      showToast("Company updated.");
     } else {
       const created = await createCompany(payload);
       setCompanies((prev) => [...prev, created]);
+      showToast("Company added.");
     }
     setIsModalOpen(false);
   }
 
   async function handleDelete(company: Company) {
-    const confirmed = window.confirm(`Delete "${company.name}"? This cannot be undone.`);
+    const confirmed = await confirm(`Delete "${company.name}"? This cannot be undone.`);
     if (!confirmed) return;
 
-    setActionError(null);
     try {
       await deleteCompany(company.id);
       setCompanies((prev) => prev.filter((c) => c.id !== company.id));
+      showToast("Company deleted.");
     } catch (err) {
-      setActionError(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to delete company. Please try again.",
+      showToast(
+        err instanceof ApiError ? err.message : "Failed to delete company. Please try again.",
+        "error",
       );
     }
   }
@@ -84,12 +87,6 @@ export function CompaniesPage() {
             Add company
           </button>
         </div>
-
-        {actionError && (
-          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-            {actionError}
-          </p>
-        )}
 
         {isLoading && <p className="text-slate-500">Loading companies...</p>}
 

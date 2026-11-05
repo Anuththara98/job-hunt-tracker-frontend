@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppHeader } from "../components/AppHeader";
 import { JobApplicationFormModal } from "../components/JobApplicationFormModal";
@@ -11,11 +11,14 @@ import {
   listJobApplications,
   updateJobApplication,
 } from "../api/jobApplications";
+import { useToast } from "../context/useToast";
+import { useConfirm } from "../context/useConfirm";
 import type { Company } from "../types/company";
-import type {
-  JobApplication,
-  JobApplicationPayload,
-  JobApplicationStatus,
+import {
+  JOB_APPLICATION_STATUSES,
+  type JobApplication,
+  type JobApplicationPayload,
+  type JobApplicationStatus,
 } from "../types/jobApplication";
 
 const STATUS_STYLES: Record<JobApplicationStatus, string> = {
@@ -25,15 +28,21 @@ const STATUS_STYLES: Record<JobApplicationStatus, string> = {
   REJECTED: "bg-red-50 text-red-700",
 };
 
+type StatusFilter = JobApplicationStatus | "ALL";
+
 export function JobApplicationsPage() {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
+
   const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [editingJobApplication, setEditingJobApplication] = useState<JobApplication | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [coverLetterTarget, setCoverLetterTarget] = useState<JobApplication | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadData();
@@ -58,13 +67,11 @@ export function JobApplicationsPage() {
 
   function openAddModal() {
     setEditingJobApplication(null);
-    setActionError(null);
     setIsModalOpen(true);
   }
 
   function openEditModal(jobApplication: JobApplication) {
     setEditingJobApplication(jobApplication);
-    setActionError(null);
     setIsModalOpen(true);
   }
 
@@ -72,33 +79,48 @@ export function JobApplicationsPage() {
     if (editingJobApplication) {
       const updated = await updateJobApplication(editingJobApplication.id, payload);
       setJobApplications((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      showToast("Job application updated.");
     } else {
       const created = await createJobApplication(payload);
       setJobApplications((prev) => [...prev, created]);
+      showToast("Job application added.");
     }
     setIsModalOpen(false);
   }
 
   async function handleDelete(jobApplication: JobApplication) {
-    const confirmed = window.confirm(
+    const confirmed = await confirm(
       `Delete the application for "${jobApplication.jobTitle}" at ${jobApplication.companyName}? This cannot be undone.`,
     );
     if (!confirmed) return;
 
-    setActionError(null);
     try {
       await deleteJobApplication(jobApplication.id);
       setJobApplications((prev) => prev.filter((j) => j.id !== jobApplication.id));
+      showToast("Job application deleted.");
     } catch (err) {
-      setActionError(
+      showToast(
         err instanceof ApiError
           ? err.message
           : "Failed to delete job application. Please try again.",
+        "error",
       );
     }
   }
 
   const hasCompanies = companies.length > 0;
+
+  const filteredJobApplications = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return jobApplications.filter((jobApplication) => {
+      const matchesStatus = statusFilter === "ALL" || jobApplication.status === statusFilter;
+      const matchesQuery =
+        query === "" ||
+        jobApplication.jobTitle.toLowerCase().includes(query) ||
+        jobApplication.companyName.toLowerCase().includes(query);
+      return matchesStatus && matchesQuery;
+    });
+  }, [jobApplications, statusFilter, searchQuery]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -127,12 +149,6 @@ export function JobApplicationsPage() {
           </p>
         )}
 
-        {actionError && (
-          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-            {actionError}
-          </p>
-        )}
-
         {isLoading && <p className="text-slate-500">Loading job applications...</p>}
 
         {loadError && <p className="text-sm text-red-600">{loadError}</p>}
@@ -142,74 +158,102 @@ export function JobApplicationsPage() {
         )}
 
         {!isLoading && !loadError && jobApplications.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Job title</th>
-                  <th className="px-4 py-3 font-medium">Company</th>
-                  <th className="px-4 py-3 font-medium">Work type</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Applied</th>
-                  <th className="px-4 py-3 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobApplications.map((jobApplication) => (
-                  <tr key={jobApplication.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      {jobApplication.jobLink ? (
-                        <a
-                          href={jobApplication.jobLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="underline"
-                        >
-                          {jobApplication.jobTitle}
-                        </a>
-                      ) : (
-                        jobApplication.jobTitle
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{jobApplication.companyName}</td>
-                    <td className="px-4 py-3 text-slate-600">{jobApplication.workType}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[jobApplication.status]}`}
-                      >
-                        {jobApplication.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {jobApplication.appliedDate ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setCoverLetterTarget(jobApplication)}
-                          className="text-sm font-medium text-slate-700 hover:text-slate-900"
-                        >
-                          Cover letter
-                        </button>
-                        <button
-                          onClick={() => openEditModal(jobApplication)}
-                          className="text-sm font-medium text-slate-700 hover:text-slate-900"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(jobApplication)}
-                          className="text-sm font-medium text-red-600 hover:text-red-700"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+          <>
+            <div className="mb-4 flex flex-wrap gap-3">
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search by job title or company..."
+                className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              />
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              >
+                <option value="ALL">All statuses</option>
+                {JOB_APPLICATION_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </select>
+            </div>
+
+            {filteredJobApplications.length === 0 ? (
+              <p className="text-slate-500">No job applications match your filters.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Job title</th>
+                      <th className="px-4 py-3 font-medium">Company</th>
+                      <th className="px-4 py-3 font-medium">Work type</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Applied</th>
+                      <th className="px-4 py-3 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredJobApplications.map((jobApplication) => (
+                      <tr key={jobApplication.id} className="border-b border-slate-100 last:border-0">
+                        <td className="px-4 py-3 font-medium text-slate-900">
+                          {jobApplication.jobLink ? (
+                            <a
+                              href={jobApplication.jobLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline"
+                            >
+                              {jobApplication.jobTitle}
+                            </a>
+                          ) : (
+                            jobApplication.jobTitle
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{jobApplication.companyName}</td>
+                        <td className="px-4 py-3 text-slate-600">{jobApplication.workType}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[jobApplication.status]}`}
+                          >
+                            {jobApplication.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {jobApplication.appliedDate ?? "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => setCoverLetterTarget(jobApplication)}
+                              className="text-sm font-medium text-slate-700 hover:text-slate-900"
+                            >
+                              Cover letter
+                            </button>
+                            <button
+                              onClick={() => openEditModal(jobApplication)}
+                              className="text-sm font-medium text-slate-700 hover:text-slate-900"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(jobApplication)}
+                              className="text-sm font-medium text-red-600 hover:text-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </main>
 
